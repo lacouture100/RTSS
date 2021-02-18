@@ -1,0 +1,109 @@
+let mic;
+
+let myVideo;
+let otherVideo;
+let otherAudio;
+let myVol;
+let videoWidthConst = 480;
+let videoHeightConst = 360;
+
+let p5l;
+
+// Chatroom name 
+let yourRoomName = "Alvaro123"
+
+function setup() {
+  let myCanvas =createCanvas(800, 600);
+  
+                            
+  mic = new p5.AudioIn();
+  mic.start();
+  
+  let constraints = {
+    video: {
+      mandatory: {
+        maxWidth: videoWidthConst,
+        maxHeight: videoHeightConst
+      },
+      optional: [{ maxFrameRate: 24 }]
+    },
+    audio: true
+  };
+  
+  
+    
+  
+  // Capture stream from browser
+  myVideo = createCapture(constraints,
+    function(stream) {
+      // Get a stream from the canvas to send
+    let canvasStream = myCanvas.elt.captureStream(15);
+    
+    // Extract the audio tracks from the stream
+    let audioTracks = stream.getAudioTracks();
+    
+    // Use the first audio track, add it to the canvas stream
+    if (audioTracks.length > 0) {
+      canvasStream.addTrack(audioTracks[0]);
+    }
+      p5l = new p5LiveMedia(this, "CAPTURE", canvasStream, yourRoomName);
+      p5l.on('stream', gotStream);
+      p5l.on('data', gotData);
+      
+    
+    }
+
+  );
+  
+  // hide the HTML <video> element
+  myVideo.hide();
+  
+    myVideo.elt.muted = true;     
+
+}
+
+function draw() {
+  background(200, 100, 255);
+    micLevel = mic.getLevel() * 1000;
+    //console.log(micLevel)
+    if(p5l){
+      sendAudioData(mic,p5l)
+    }
+  if (myVideo != null) {
+    image(myVideo, 0, 0, 320, 240);
+    console.log(micLevel)
+    //let normalizedAudioLevel = map(micLevel,0,300,0,255)
+   tint(255, micLevel)
+  }
+
+  if (otherVideo != null) {
+    image(otherVideo, 320, 0, 320, 240);
+    tint(255, otherAudio)
+    
+  }
+}
+
+
+// Every time there is a new stream
+function gotStream(incomingStream, id) {
+  // define the incoming stream
+  otherVideo = incomingStream;
+  //otherVideo.id and id are the same and unique identifiers
+  otherVideo.hide();
+}
+
+// Every time there is a new stream
+function gotData(incomingData, id) {
+  // define the incoming stream
+  let data = JSON.parse(incomingData);
+  otherAudio = data.volume
+}
+
+function sendAudioData(audioStream){
+  let audioLevel = audioStream.getLevel() * 10000;
+  // Package as JSON to send
+  let dataToSend = {volume: audioLevel};
+  
+  // Send data
+  p5l.send(JSON.stringify(dataToSend));
+}
